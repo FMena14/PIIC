@@ -23,18 +23,18 @@ lats = dataset.variables['latitude']
 lats_data = lats[:]
 
 #aprox square over santiago --- coordinates
-start_long = lons_data[635]
-end_long = lons_data[675]
+start_long = lons_data[640]
+end_long = lons_data[670]
 
-start_lat = lats_data[1575]
-end_lat = lats_data[1625]
+start_lat = lats_data[1580]
+end_lat = lats_data[1620]
 
 print("Start longitude %f - End Longitute %f"%(start_long,end_long))
 print("Start latitude %f - End latitude %f"%(start_lat,end_lat))
 
 dataset.close()
 
-W , H = 40, 50
+W , H = 30, 40
 precision_degrees = 0.01
 
 
@@ -61,7 +61,7 @@ IND_i = int(round((IND_lat-start_lat)/precision_degrees))
 IND_j = int(round((IND_long-start_long)/precision_degrees))
 
 ## representacion
-rows_to_use = ["CO","PM10","PM25","NO2","NO","NOX","SO2","WD","RH","TEMP","WS","HCNM","UVA","UVB","O3"]
+rows_to_use = ["CO","PM10","SO2","WD", "RH","TEMP", "WS", "UVA","UVB","O3"]
 from keras.preprocessing.sequence import pad_sequences
 
 def create_sequences(dataframe,lag=1):
@@ -181,23 +181,24 @@ def makeGaussian(size1,size2, sigma1 = 3,sigma2=3):
 
 def convolve_cube(cube,PSF):
     new_timestep_data = np.zeros(cube.shape)
-    for t in range(new_timestep_data.shape[0]):
-        if t%10000==0:
-            print("Va en : ",t)
-        for c in range(new_timestep_data.shape[-1]):
-            if np.sum(np.isnan(cube[t,:,:,c])) > 0: #any nan
-                new_timestep_data[t,:,:,c] = cube[t,:,:,c] #leave nans
-            else:
-                new_timestep_data[t,:,:,c] = convolve2d(cube[t,:,:,c], PSF, mode='same', boundary='fill', fillvalue=0)
+    for i in range(new_timestep_data.shape[0]):
+        for t in range(new_timestep_data.shape[1]):
+            if (t*i)%10000==0:
+                print("Va en : ",t*i)
+            for c in range(new_timestep_data.shape[-1]):
+                if np.sum(np.isnan(cube[t,:,:,c])) > 0: #any nan
+                    new_timestep_data[i,t,:,:,c] = cube[i,t,:,:,c] #leave nans
+                else:
+                    new_timestep_data[i,t,:,:,c] = convolve2d(cube[i,t,:,:,c], PSF, mode='same', boundary='fill', fillvalue=0)
     return new_timestep_data
 
 psf_norm, normal_factor = makeGaussian(W,H,W,H)
 psf_unnorm = psf_norm*normal_factor
 
 
-new_cube_data1 = convolve_cube(data_ind,psf_norm)
+new_cube_data1 = convolve_cube(data_ind,psf_unnorm)
 np.save('inputX_verano_Independencia_norm.npy',new_cube_data1)
-new_cube_data2 = convolve_cube(data_cond,psf_norm)
+new_cube_data2 = convolve_cube(data_cond,psf_unnorm)
 np.save('inputX_verano_LasCondes_norm.npy',new_cube_data2)
 
 np.save('targetY_verano_Independencia.npy',trainY1_inv)
